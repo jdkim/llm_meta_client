@@ -5,22 +5,30 @@ require "json"
 module LlmMetaClient
   class ServerQuery
     # Stream LLM responses incrementally. Yields each content delta event
-    # ({ event: "message", data: { "delta" => "..." } }) to the caller's block.
-    # Upstream "done" markers are absorbed (end-of-stream is signaled by the
-    # block returning); upstream "error" events raise ServerError.
-    # Returns the assembled content string. Tool calls are not supported here.
-    def stream(id_token, api_key_uuid, model_id, context, user_content, generation_settings: {})
+    # ({ event: "message", data: { "delta" => "..." } }) and any tool_calls
+    # event ({ event: "tool_calls", data: { "tool_calls" => [...] } }) to the
+    # caller's block. Upstream "done" markers are absorbed (end-of-stream is
+    # signaled by the block returning); upstream "error" events raise ServerError.
+    # Returns the final assistant content. If tool calls fired, the returned
+    # string mirrors the synchronous #call format (response + markdown
+    # "Tool calls" section appended) so persistence stays consistent.
+    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {})
       context_and_user_content = "Context:#{context}, User Prompt: #{user_content}"
       debug_log "Streaming request to LLM: \n===>\n#{context_and_user_content}\n===>"
 
       body = { prompt: context_and_user_content }
+      body[:tool_ids] = tool_ids if tool_ids.present?
       body[:generation_settings] = generation_settings if generation_settings.present?
 
       assembled = +""
+      collected_tool_calls = []
       request_stream(api_key_uuid, id_token, model_id, body) do |event|
         case event[:event]
         when "message"
           assembled << event[:data]["delta"].to_s
+          yield event if block_given?
+        when "tool_calls"
+          collected_tool_calls = event[:data]["tool_calls"] || []
           yield event if block_given?
         when "done"
           # End-of-stream marker from upstream; no-op here.
@@ -31,7 +39,7 @@ module LlmMetaClient
         end
       end
 
-      assembled
+      collected_tool_calls.any? ? combine_with_tool_calls(assembled, collected_tool_calls) : assembled
     end
 
     def call(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {})

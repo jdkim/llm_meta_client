@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-10
+
+### Added
+
+- Tool-call streaming end-to-end. `ServerQuery#stream` now accepts `tool_ids:` and yields a `tool_calls` event when the LLM decides to invoke MCP tools. Turn 1 (tool selection) runs synchronously; turn 2 (the follow-up after tool execution) is streamed.
+- Scaffold renders a separate "🛠 Tool calls" bubble during streaming via the new `_tool_call_message.html.erb` partial. The Stimulus controller inserts it before the streaming bubble when `event: tool_calls` arrives, and removes it once the assistant message is saved (the saved bubble's combined markdown contains the tool-call section).
+- `Chat#stream_assistant_response` accepts `tool_ids:` and threads them through. Persistence is unchanged — the saved `Message.response` includes a markdown "Tool calls" section appended to the response text, matching the existing synchronous shape.
+- When `tool_ids` is non-empty, the system prompt is augmented with an instruction to explain tool errors rather than fail silently. Models that ignore the instruction are caught by a server-side fallback (see below).
+
+### Changed
+
+- Streaming error messages now parse `error` + `message` from the response body so users see context (e.g. "Rate limit exceeded — check your provider plan…") instead of a bare HTTP code. Mid-stream `event: error` payloads with codes like `rate_limit` get the same friendlier treatment.
+
+### Notes
+
+- Requires `llm_meta_server` with the matching tool-streaming additions: `LlmRbFacade.stream!` accepting `tools:` + `on_tool_calls:` and an `Api::ChatStreamsController` that emits the `tool_calls` SSE event. Server-side fixes that ship alongside this release: an Anthropic-tool-only-response rehydrator (Claude tool-only completions weren't surfacing through `Session#functions`), and a sink injection that emits MCP `isError: true` payloads as text deltas before turn 2 (Gemini sometimes returns nothing after a tool error and would otherwise leave the bubble blank).
+
 ## [1.2.0] - 2026-05-10
 
 ### Added

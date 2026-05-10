@@ -31,6 +31,7 @@ module LlmMetaClient
         template "app/views/chats/update.turbo_stream.erb"
         template "app/views/chats/_message.html.erb"
         template "app/views/chats/_streaming_message.html.erb"
+        template "app/views/chats/_tool_call_message.html.erb"
         template "app/views/chats/_chat_sidebar.html.erb"
         template "app/views/chats/_messages_list.html.erb"
         template "app/views/shared/_family_field.html.erb"
