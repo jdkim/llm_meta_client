@@ -19,6 +19,7 @@ module LlmMetaClient
 
       def create_controllers
         template "app/controllers/chats_controller.rb"
+        template "app/controllers/chat_streams_controller.rb"
         template "app/controllers/prompts_controller.rb"
         template "app/controllers/api/mcp_servers_controller.rb"
       end
@@ -29,6 +30,8 @@ module LlmMetaClient
         template "app/views/chats/create.turbo_stream.erb"
         template "app/views/chats/update.turbo_stream.erb"
         template "app/views/chats/_message.html.erb"
+        template "app/views/chats/_streaming_message.html.erb"
+        template "app/views/chats/_chat_sidebar.html.erb"
         template "app/views/chats/_messages_list.html.erb"
         template "app/views/shared/_family_field.html.erb"
         template "app/views/shared/_api_key_field.html.erb"
@@ -46,6 +49,7 @@ module LlmMetaClient
         template "app/javascript/controllers/chat_title_edit_controller.js"
         template "app/javascript/controllers/tool_selector_controller.js"
         template "app/javascript/controllers/generation_settings_controller.js"
+        template "app/javascript/controllers/message_stream_controller.js"
         copy_file "app/javascript/popover.js"
       end
 
@@ -73,6 +77,7 @@ module LlmMetaClient
               patch :update_title
               get :download_csv
             end
+            resource :stream, only: [ :show ], controller: "chat_streams"
           end
           resources :prompts, only: [ :show ]
 

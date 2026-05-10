@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-10
+
+### Added
+
+- End-to-end SSE streaming for chat completions:
+  - `ServerQuery#stream` consumes SSE from the new `chat_streams` endpoint on `llm_meta_server` and yields parsed events. Returns the assembled content; absorbs upstream `done` markers and raises `ServerError` on upstream `error` events.
+  - `Chat#stream_assistant_response` and `Chat#finalize_streamed_response` for streaming generation with persistence at stream close (assistant message saved only on success — disconnects mid-stream don't persist).
+  - Scaffold now generates `ChatStreamsController`, `_streaming_message.html.erb` partial, `message_stream_controller.js` Stimulus controller, and a shared `_chat_sidebar.html.erb` partial. Routes add `resource :stream` nested under `chats`.
+  - Streaming bubble swaps to the host-rendered `_message` partial on save, so any markdown / syntax-highlighting customization in the host's `_message.html.erb` applies post-stream.
+  - `event: title` SSE event includes a turbo_stream snippet that updates the chat-sidebar in place when a brand-new chat gets its auto-generated title.
+
+### Changed
+
+- `ServerQuery` error messages parse the JSON response body from `llm_meta_server` and surface friendlier text (rate limits, auth errors, upstream unavailable) instead of bare `HTTP <code>`.
+- Streaming endpoint v1 does not pass `tool_ids`. The synchronous `#call` path is unchanged and still supports tool calls.
+
+### Notes
+
+- The streaming endpoint requires `llm_meta_server` with the matching `chat_streams` route. SSE delivery through reverse proxies needs `proxy_buffering off` (nginx) or `flushpackets=on` + `SetEnv no-gzip 1` (Apache).
+
+## [1.1.1] - 2026-04-22
+
+### Added
+
+- `ServerQuery#call` now surfaces tool calls from the LLM server response. When the response includes a `tool_calls` array, a markdown-formatted "Tool calls" section (name + JSON args) is appended to the returned content (separated by a horizontal rule). This lets host apps display which tools the LLM invoked without any schema or view changes; existing markdown renderers pick it up automatically. Previously, tool calls were silently dropped.
+
+## [1.1.0] - 2026-04-22
+
+### Changed
+
+- Widen `prompt_navigator` dependency constraint from `~> 1.0` to `>= 1.0, < 3.0` so host apps can opt into `prompt_navigator` 2.0 (which requires Ruby 3.4.9+ and adds `PromptExecution.delete_set!`). Existing hosts on `prompt_navigator` 1.x keep resolving unchanged.
+
 ## [1.0.2] - 2026-03-27
 
 ### Added

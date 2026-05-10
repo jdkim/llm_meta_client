@@ -23,6 +23,6 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rails", "~> 8.1", ">= 8.1.1"
   spec.add_dependency "httparty", "~> 0.22"
-  spec.add_dependency "prompt_navigator", "~> 1.0"
+  spec.add_dependency "prompt_navigator", ">= 1.0", "< 3.0"
   spec.add_dependency "chat_manager", "~> 1.0"
 end
