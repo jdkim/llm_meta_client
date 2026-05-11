@@ -29,6 +29,7 @@ module LlmMetaClient
         template "app/views/chats/edit.html.erb"
         template "app/views/chats/create.turbo_stream.erb"
         template "app/views/chats/update.turbo_stream.erb"
+        template "app/views/chats/destroy.turbo_stream.erb"
         template "app/views/chats/_message.html.erb"
         template "app/views/chats/_streaming_message.html.erb"
         template "app/views/chats/_tool_call_message.html.erb"
@@ -41,6 +42,7 @@ module LlmMetaClient
         template "app/views/shared/_generation_settings_field.html.erb"
         template "app/views/layouts/application.html.erb"
         template "app/views/layouts/_header.html.erb"
+        template "app/views/layouts/_new_chat_button.html.erb"
         template "app/views/layouts/_sidebar.html.erb"
       end
 
@@ -68,7 +70,7 @@ module LlmMetaClient
         route <<-RUBY
           root "chats#new"
 
-          resources :chats, only: [ :new, :create, :edit, :update, :show ] do
+          resources :chats, only: [ :new, :create, :edit, :update, :show, :destroy ] do
             collection do
               delete :clear
               post :start_new

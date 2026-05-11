@@ -87,7 +87,8 @@ class ChatsController < ApplicationController
       @prompt_execution, @user_message = @chat.add_user_message(params[:message],
                                                                 params[:api_key_uuid],
                                                                 params[:model],
-                                                                params[:branch_from_uuid])
+                                                                params[:branch_from_uuid],
+                                                                llm_platform: params[:family])
       # Push to history for rendering
       push_to_history @prompt_execution
       # Set active message UUID for highlighting in UI
@@ -104,6 +105,27 @@ class ChatsController < ApplicationController
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to new_chat_path }
+    end
+  end
+
+  def destroy
+    scope = user_signed_in? ? current_user.chats : Chat.where(user_id: nil)
+    chat = scope.find_by(uuid: params[:id])
+    was_active = chat && session[:chat_id] == chat.id
+    if chat
+      session.delete(:chat_id) if was_active
+      chat.destroy
+    end
+
+    initialize_chat(user_signed_in? ? current_user.chats : nil)
+
+    if was_active
+      redirect_to root_path
+    else
+      respond_to do |format|
+        format.turbo_stream
+        format.html { redirect_to root_path }
+      end
     end
   end
 
@@ -181,7 +203,8 @@ class ChatsController < ApplicationController
       @prompt_execution, @user_message = @chat.add_user_message(params[:message],
                                                                params[:api_key_uuid],
                                                                params[:model],
-                                                               params[:branch_from_uuid])
+                                                               params[:branch_from_uuid],
+                                                               llm_platform: params[:family])
       # Push to history for rendering
       push_to_history @prompt_execution
       # Set active message UUID for highlighting in UI

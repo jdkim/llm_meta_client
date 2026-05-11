@@ -138,7 +138,7 @@ module LlmMetaClient
 
           buffer = +""
           response.read_body do |chunk|
-            buffer << chunk
+            buffer << chunk.force_encoding("UTF-8")
             while (boundary = buffer.index("\n\n"))
               raw_event = buffer.slice!(0, boundary + 2)
               parsed = parse_sse_event(raw_event)
@@ -173,6 +173,7 @@ module LlmMetaClient
       if body.is_a?(Hash)
         err = body["error"]
         msg = body["message"]
+        return "Your sign-in expired. Please sign in again." if err.to_s.match?(/token has expired/i)
         return "#{err}: #{msg}" if err.present? && msg.present?
         return err if err.present?
         return msg if msg.present?
