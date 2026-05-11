@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-11
+
+### Added
+
+- Phase indicator in the streaming bubble. `message_stream_controller` now handles `event: phase` from the server and updates the role label (e.g. "🤔 Thinking…") so the user sees progress during turn 1 tool selection and turn 2 reasoning. The label auto-flips back to "🤖 streaming…" on the first content delta.
+- Streaming endpoint emits SSE keepalive comment lines during long synchronous waits (works alongside the server-side heartbeat thread on `llm_meta_server`). EventSource ignores these by design; they keep the connection warm through buffering proxies.
+
+### Notes
+
+- Requires `llm_meta_server` with the matching `on_phase_change` plumbing in `LlmRbFacade.stream!` and the heartbeat thread in `Api::ChatStreamsController`.
+
 ## [1.3.0] - 2026-05-10
 
 ### Added
