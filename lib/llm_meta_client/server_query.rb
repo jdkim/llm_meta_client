@@ -12,11 +12,16 @@ module LlmMetaClient
     # Returns the final assistant content. If tool calls fired, the returned
     # string mirrors the synchronous #call format (response + markdown
     # "Tool calls" section appended) so persistence stays consistent.
-    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {})
-      context_and_user_content = "Context:#{context}, User Prompt: #{user_content}"
-      debug_log "Streaming request to LLM: \n===>\n#{context_and_user_content}\n===>"
-
-      body = { prompt: context_and_user_content }
+    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, image_context: nil)
+      if image_context.present?
+        prompt_text = user_content.is_a?(Hash) ? (user_content[:prompt] || user_content["prompt"]).to_s : user_content.to_s
+        debug_log "Streaming image request to LLM: \n===>\n#{prompt_text}\n(with #{image_context.size} prior turn(s))\n===>"
+        body = { prompt: prompt_text, image_context: image_context }
+      else
+        context_and_user_content = "Context:#{context}, User Prompt: #{user_content}"
+        debug_log "Streaming request to LLM: \n===>\n#{context_and_user_content}\n===>"
+        body = { prompt: context_and_user_content }
+      end
       body[:tool_ids] = tool_ids if tool_ids.present?
       body[:generation_settings] = generation_settings if generation_settings.present?
 

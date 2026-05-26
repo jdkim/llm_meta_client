@@ -80,10 +80,11 @@ module LlmMetaClient
             member do
               patch :update_title
               get :download_csv
+              post :add_prompt
             end
             resource :stream, only: [ :show ], controller: "chat_streams"
           end
-          resources :prompts, only: [ :show ]
+          resources :prompts, only: [ :show, :destroy ]
 
           namespace :api do
             resources :mcp_servers, only: [ :index ], param: :uuid do
