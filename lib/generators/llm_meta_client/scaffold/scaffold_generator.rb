@@ -35,9 +35,8 @@ module LlmMetaClient
         template "app/views/chats/_tool_call_message.html.erb"
         template "app/views/chats/_chat_sidebar.html.erb"
         template "app/views/chats/_messages_list.html.erb"
-        template "app/views/shared/_family_field.html.erb"
-        template "app/views/shared/_api_key_field.html.erb"
-        template "app/views/shared/_model_field.html.erb"
+        template "app/views/shared/_quick_picks.html.erb"
+        template "app/views/shared/_model_grid.html.erb"
         template "app/views/shared/_tool_selector_field.html.erb"
         template "app/views/shared/_generation_settings_field.html.erb"
         template "app/views/layouts/application.html.erb"
@@ -47,7 +46,8 @@ module LlmMetaClient
       end
 
       def create_javascript
-        template "app/javascript/controllers/llm_selector_controller.js"
+        template "app/javascript/controllers/model_picker_controller.js"
+        template "app/javascript/controllers/llm_toggle_controller.js"
         template "app/javascript/controllers/chats_form_controller.js"
         template "app/javascript/controllers/chat_title_edit_controller.js"
         template "app/javascript/controllers/tool_selector_controller.js"
