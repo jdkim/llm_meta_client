@@ -189,6 +189,30 @@ class LlmMetaClient::ServerQueryTest < ActiveSupport::TestCase
     end
   end
 
+  test "#stream yields thinking events to the caller without folding them into the assembled content" do
+    body = [
+      sse("thinking", { delta: "let me think" }),
+      sse("thinking", { delta: " about this" }),
+      sse("message", { delta: "Hello" }),
+      sse("message", { delta: " world" }),
+      sse("done", {})
+    ].join
+
+    stub_request(:post, STREAM_URL).to_return(
+      status: 200, headers: { "Content-Type" => "text/event-stream" }, body: body
+    )
+
+    yielded = []
+    result = @query.stream(TOKEN, UUID, MODEL, "ctx", "go") { |ev| yielded << ev }
+
+    # The assembled return value reflects ONLY content deltas — thinking is ephemeral.
+    assert_equal "Hello world", result
+
+    # But thinking events were yielded through to the caller's block intact.
+    thinking_deltas = yielded.select { |e| e[:event] == "thinking" }.map { |e| e[:data]["delta"] }
+    assert_equal [ "let me think", " about this" ], thinking_deltas
+  end
+
   test "#stream captures tool_calls events and folds them into the returned string" do
     body = [
       sse("message", { delta: "Using a tool..." }),

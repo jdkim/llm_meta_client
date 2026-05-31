@@ -36,6 +36,11 @@ module LlmMetaClient
         when "tool_calls"
           collected_tool_calls = event[:data]["tool_calls"] || []
           yield event if block_given?
+        when "thinking"
+          # Thinking-mode deltas (Ollama hybrid models): forwarded to the
+          # caller for live rendering, but NOT folded into `assembled` —
+          # only the final content is persisted as the assistant message.
+          yield event if block_given?
         when "done"
           # End-of-stream marker from upstream; no-op here.
         when "error"
