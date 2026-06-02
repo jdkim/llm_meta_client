@@ -53,6 +53,7 @@ module LlmMetaClient
         template "app/javascript/controllers/tool_selector_controller.js"
         template "app/javascript/controllers/generation_settings_controller.js"
         template "app/javascript/controllers/message_stream_controller.js"
+        template "app/javascript/controllers/asset_actions_controller.js"
         copy_file "app/javascript/popover.js"
       end
 
