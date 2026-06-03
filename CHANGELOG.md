@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-06-04
+
+### Added
+
+- Thinking-mode SSE event: `message_stream_controller` handles `event: thinking` for reasoning models and renders a fixed-height collapsible reasoning panel with pulsing dots while the model is mid-thought.
+- Image input — `ServerQuery#stream` and `#run` now accept an `images:` array; scaffold templates add Enter-to-send, image preview, drag-and-drop, and a URL-based chat identity so reload preserves the active conversation.
+- Image-generation plumbing: scaffold supports Gemini image-gen responses (data-URI rendering, save-as-PNG) and a cancel button that aborts an in-flight stream.
+- Asset actions: scaffold ships `asset_actions_controller` so assistant responses get Download / Copy buttons on JSON, CSV, and image blocks.
+- Grid-view model picker — quick-picks row + searchable "Other models" tile grid with a Settings count badge; favorites can be reordered.
+- Default-LLM persistence, batch chat actions (multi-select destroy/export), refreshable "New Chat" button, and a redesigned chat input.
+
+### Changed
+
+- `message_stream_controller` UI polish: fixed-height reasoning area, pulsing dots, smoother streaming bubble layout.
+- Scaffold model-selection labels renamed for consistency with the hub UI.
+- `strip_title_markdown` helper normalizes generated chat titles for sidebar display.
+
+### Tested
+
+- `ServerQuery` HTTP client — sync, SSE, and error-mapping branches.
+- `ServerResource` REST helpers + Ollama-fallback branches.
+- `Helpers#split_attached_image_html` regex.
+
+### Notes
+
+- Compatible with `llm_meta_server` ≥ the matching server-side thinking-event and image-input plumbing.
+
 ## [1.4.0] - 2026-05-11
 
 ### Added
