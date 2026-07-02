@@ -189,6 +189,64 @@ class LlmMetaClient::ServerQueryTest < ActiveSupport::TestCase
     end
   end
 
+  test "#stream forwards an attached document (PDF) as a top-level `document` field" do
+    body = [ sse("message", { delta: "ok" }), sse("done", {}) ].join
+    stub_request(:post, STREAM_URL).to_return(
+      status: 200, headers: { "Content-Type" => "text/event-stream" }, body: body
+    )
+
+    @query.stream(TOKEN, UUID, MODEL, "ctx", "summarize this",
+                  document: { mime: "application/pdf", data_b64: "JVBERi0x" }) { }
+
+    assert_requested(:post, STREAM_URL) do |req|
+      b = JSON.parse(req.body)
+      b["document"] == { "mime" => "application/pdf", "data_b64" => "JVBERi0x" }
+    end
+  end
+
+  test "#stream omits `document` from the body when the kwarg is not given" do
+    body = [ sse("message", { delta: "ok" }), sse("done", {}) ].join
+    stub_request(:post, STREAM_URL).to_return(
+      status: 200, headers: { "Content-Type" => "text/event-stream" }, body: body
+    )
+
+    @query.stream(TOKEN, UUID, MODEL, "ctx", "hi") { }
+
+    assert_requested(:post, STREAM_URL) do |req|
+      b = JSON.parse(req.body)
+      !b.key?("document")
+    end
+  end
+
+  test "#call forwards an attached document (PDF) in the JSON body" do
+    stub_request(:post, CHATS_URL).to_return(
+      status: 200, body: { response: { message: "ok" } }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    )
+
+    @query.call(TOKEN, UUID, MODEL, "ctx", "read this paper",
+                document: { mime: "application/pdf", data_b64: "JVBERi0x" })
+
+    assert_requested(:post, CHATS_URL) do |req|
+      b = JSON.parse(req.body)
+      b["document"] == { "mime" => "application/pdf", "data_b64" => "JVBERi0x" }
+    end
+  end
+
+  test "#call omits `document` when the kwarg is not given" do
+    stub_request(:post, CHATS_URL).to_return(
+      status: 200, body: { response: { message: "ok" } }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    )
+
+    @query.call(TOKEN, UUID, MODEL, "ctx", "hi")
+
+    assert_requested(:post, CHATS_URL) do |req|
+      b = JSON.parse(req.body)
+      !b.key?("document")
+    end
+  end
+
   test "#stream yields thinking events to the caller without folding them into the assembled content" do
     body = [
       sse("thinking", { delta: "let me think" }),

@@ -12,7 +12,7 @@ module LlmMetaClient
     # Returns the final assistant content. If tool calls fired, the returned
     # string mirrors the synchronous #call format (response + markdown
     # "Tool calls" section appended) so persistence stays consistent.
-    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, image_context: nil, image: nil, images: nil)
+    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, image_context: nil, image: nil, images: nil, document: nil)
       if image_context.present?
         prompt_text = user_content.is_a?(Hash) ? (user_content[:prompt] || user_content["prompt"]).to_s : user_content.to_s
         debug_log "Streaming image request to LLM: \n===>\n#{prompt_text}\n(with #{image_context.size} prior turn(s))\n===>"
@@ -31,6 +31,9 @@ module LlmMetaClient
       elsif image.present?
         body[:image] = image
       end
+      # document: single-attachment PDF for the current turn. Server enforces
+      # MIME (application/pdf) and a 10 MB cap; we just forward the payload.
+      body[:document] = document if document.present?
 
       assembled = +""
       collected_tool_calls = []
@@ -59,12 +62,12 @@ module LlmMetaClient
       collected_tool_calls.any? ? combine_with_tool_calls(assembled, collected_tool_calls) : assembled
     end
 
-    def call(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {})
+    def call(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, document: nil)
       debug_log "Context: #{context}"
       context_and_user_content = "Context:#{context}, User Prompt: #{user_content}"
       debug_log "Request to LLM: \n===>\n#{context_and_user_content}\n===>"
 
-      response = request(api_key_uuid, id_token, model_id, context_and_user_content, tool_ids, generation_settings)
+      response = request(api_key_uuid, id_token, model_id, context_and_user_content, tool_ids, generation_settings, document: document)
 
       unless response.success?
         raise Exceptions::ServerError, build_error_message(response.code.to_i, response.parsed_response)
@@ -113,13 +116,14 @@ module LlmMetaClient
       lines.join("\n")
     end
 
-    def request(api_key_uuid, id_token, model_id, user_content, tool_ids, generation_settings)
+    def request(api_key_uuid, id_token, model_id, user_content, tool_ids, generation_settings, document: nil)
       headers = { "Content-Type" => "application/json" }
       headers["Authorization"] = "Bearer #{id_token}" if id_token.present?
 
       body = { prompt: user_content.to_s }
       body[:tool_ids] = tool_ids if tool_ids.present?
       body[:generation_settings] = generation_settings if generation_settings.present?
+      body[:document] = document if document.present?
 
       HTTParty.post(
         url(api_key_uuid, model_id),
