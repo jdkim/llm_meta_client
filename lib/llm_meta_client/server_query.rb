@@ -12,11 +12,20 @@ module LlmMetaClient
     # Returns the final assistant content. If tool calls fired, the returned
     # string mirrors the synchronous #call format (response + markdown
     # "Tool calls" section appended) so persistence stays consistent.
-    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, image_context: nil, image: nil, images: nil, document: nil)
+    def stream(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, image_context: nil, image: nil, images: nil, document: nil, messages: nil)
       if image_context.present?
         prompt_text = user_content.is_a?(Hash) ? (user_content[:prompt] || user_content["prompt"]).to_s : user_content.to_s
         debug_log "Streaming image request to LLM: \n===>\n#{prompt_text}\n(with #{image_context.size} prior turn(s))\n===>"
         body = { prompt: prompt_text, image_context: image_context }
+      elsif messages.present?
+        # New (v1.7+) role-tagged wire format. Prior turns travel as a
+        # proper `messages:` array; the current user turn's text is sent as
+        # `prompt`. Callers who use this form should NOT include the
+        # current turn in `messages` — it stays in `prompt` so attachments
+        # (image/document) can attach to it via the existing pipeline.
+        prompt_text = user_content.is_a?(Hash) ? (user_content[:prompt] || user_content["prompt"]).to_s : user_content.to_s
+        debug_log "Streaming role-tagged request to LLM: \n===>\n#{prompt_text}\n(with #{messages.size} prior message(s))\n===>"
+        body = { prompt: prompt_text, messages: messages }
       else
         context_and_user_content = "Context:#{context}, User Prompt: #{user_content}"
         debug_log "Streaming request to LLM: \n===>\n#{context_and_user_content}\n===>"
@@ -62,12 +71,18 @@ module LlmMetaClient
       collected_tool_calls.any? ? combine_with_tool_calls(assembled, collected_tool_calls) : assembled
     end
 
-    def call(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, document: nil)
+    def call(id_token, api_key_uuid, model_id, context, user_content, tool_ids: [], generation_settings: {}, document: nil, messages: nil)
       debug_log "Context: #{context}"
-      context_and_user_content = "Context:#{context}, User Prompt: #{user_content}"
-      debug_log "Request to LLM: \n===>\n#{context_and_user_content}\n===>"
+      if messages.present?
+        prompt_text = user_content.is_a?(Hash) ? (user_content[:prompt] || user_content["prompt"]).to_s : user_content.to_s
+        debug_log "Role-tagged request to LLM: \n===>\n#{prompt_text}\n(with #{messages.size} prior message(s))\n===>"
+        payload = prompt_text
+      else
+        payload = "Context:#{context}, User Prompt: #{user_content}"
+        debug_log "Request to LLM: \n===>\n#{payload}\n===>"
+      end
 
-      response = request(api_key_uuid, id_token, model_id, context_and_user_content, tool_ids, generation_settings, document: document)
+      response = request(api_key_uuid, id_token, model_id, payload, tool_ids, generation_settings, document: document, messages: messages)
 
       unless response.success?
         raise Exceptions::ServerError, build_error_message(response.code.to_i, response.parsed_response)
@@ -116,7 +131,7 @@ module LlmMetaClient
       lines.join("\n")
     end
 
-    def request(api_key_uuid, id_token, model_id, user_content, tool_ids, generation_settings, document: nil)
+    def request(api_key_uuid, id_token, model_id, user_content, tool_ids, generation_settings, document: nil, messages: nil)
       headers = { "Content-Type" => "application/json" }
       headers["Authorization"] = "Bearer #{id_token}" if id_token.present?
 
@@ -124,6 +139,7 @@ module LlmMetaClient
       body[:tool_ids] = tool_ids if tool_ids.present?
       body[:generation_settings] = generation_settings if generation_settings.present?
       body[:document] = document if document.present?
+      body[:messages] = messages if messages.present?
 
       HTTParty.post(
         url(api_key_uuid, model_id),

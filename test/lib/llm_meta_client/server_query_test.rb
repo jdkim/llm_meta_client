@@ -233,6 +233,80 @@ class LlmMetaClient::ServerQueryTest < ActiveSupport::TestCase
     end
   end
 
+  test "#stream forwards a `messages` array as a top-level field and puts the current turn's text in `prompt`" do
+    body = [ sse("message", { delta: "ok" }), sse("done", {}) ].join
+    stub_request(:post, STREAM_URL).to_return(
+      status: 200, headers: { "Content-Type" => "text/event-stream" }, body: body
+    )
+
+    history = [
+      { role: "user",      content: "Extract JSON" },
+      { role: "assistant", content: "{}" }
+    ]
+    @query.stream(TOKEN, UUID, MODEL, "ignored-legacy-context", { role: "user", prompt: "now draft" },
+                  messages: history) { }
+
+    assert_requested(:post, STREAM_URL) do |req|
+      b = JSON.parse(req.body)
+      b["messages"] == history.map { |m| m.transform_keys(&:to_s) } &&
+        b["prompt"] == "now draft" &&
+        # And crucially, the legacy "Context: ... User Prompt: ..." blob is
+        # NOT built when messages is provided.
+        !b["prompt"].include?("Context:") &&
+        !b["prompt"].include?("User Prompt:")
+    end
+  end
+
+  test "#stream falls back to the legacy Context/User-Prompt blob when messages is absent" do
+    body = [ sse("message", { delta: "ok" }), sse("done", {}) ].join
+    stub_request(:post, STREAM_URL).to_return(
+      status: 200, headers: { "Content-Type" => "text/event-stream" }, body: body
+    )
+
+    @query.stream(TOKEN, UUID, MODEL, "ctx", "hi") { }
+
+    assert_requested(:post, STREAM_URL) do |req|
+      b = JSON.parse(req.body)
+      !b.key?("messages") &&
+        b["prompt"].start_with?("Context:")
+    end
+  end
+
+  test "#call forwards a `messages` array in the JSON body and sends only the current turn text as prompt" do
+    stub_request(:post, CHATS_URL).to_return(
+      status: 200, body: { response: { message: "ok" } }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    )
+
+    history = [
+      { role: "user",      content: "Extract JSON" },
+      { role: "assistant", content: "{}" }
+    ]
+    @query.call(TOKEN, UUID, MODEL, "ignored-legacy-context", { role: "user", prompt: "now draft" },
+                messages: history)
+
+    assert_requested(:post, CHATS_URL) do |req|
+      b = JSON.parse(req.body)
+      b["messages"] == history.map { |m| m.transform_keys(&:to_s) } &&
+        b["prompt"] == "now draft" &&
+        !b["prompt"].include?("Context:")
+    end
+  end
+
+  test "#call omits `messages` when the kwarg is not given" do
+    stub_request(:post, CHATS_URL).to_return(
+      status: 200, body: { response: { message: "ok" } }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    )
+
+    @query.call(TOKEN, UUID, MODEL, "ctx", "hi")
+
+    assert_requested(:post, CHATS_URL) do |req|
+      b = JSON.parse(req.body)
+      !b.key?("messages")
+    end
+  end
+
   test "#call omits `document` when the kwarg is not given" do
     stub_request(:post, CHATS_URL).to_return(
       status: 200, body: { response: { message: "ok" } }.to_json,

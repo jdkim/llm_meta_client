@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-06
+
+### Added
+
+- `ServerQuery#stream` and `#call` accept a new `messages:` kwarg — an array of role-tagged prior turns (`[{role: "user"|"assistant"|"system", content: "..."}]`) forwarded to `llm_meta_server` as `messages` in the JSON body. When present, the current-turn text stays in `prompt:` (so image/document attachments still bind to it) and the server pre-seeds `LLM::Session`'s message buffer with the history. Fixes a class of "sticky context" bugs where models re-executed the prior turn's task instead of the new instruction because the whole conversation was being packed into a single user message.
+
 ## [1.6.0] - 2026-07-02
 
 ### Added
