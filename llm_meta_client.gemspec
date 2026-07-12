@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.homepage    = "https://github.com/dhq-boiler/llm_meta_client"
   spec.summary     = "A Rails Engine for integrating multiple LLM providers into your application."
   spec.description = "llm_meta_client provides a Rails Engine with scaffold and authentication generators for building LLM-powered chat applications. Supports OpenAI, Anthropic, Google, and Ollama providers."
-  spec.license     = "MIT"
+  spec.license     = "Apache-2.0"
 
   spec.required_ruby_version = ">= 3.4"
 
