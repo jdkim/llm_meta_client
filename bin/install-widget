@@ -1,0 +1,102 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Copy the llm_meta widget surface (orchestrator JS + partial + helper) into
+# a Rails host. Used instead of a `rails g` generator so hosts don't need to
+# add llm_meta_client to their Gemfile — the gem's transitive deps
+# (chat_manager, prompt_navigator) pin Rails >= 8.1.2 and would refuse to
+# bundle on a Rails 8.0 host. See project_page_embedded_actions memory
+# (§ "Consumption mode: generator-based copy from engine") for rationale.
+#
+# Usage:
+#   bin/install-widget /path/to/host          # copy in
+#   bin/install-widget --dry-run /path/to/host
+#   bin/install-widget --force  /path/to/host # overwrite existing files
+#
+# What lands in the host:
+#   public/js/llm_meta_orchestrator.js
+#   app/views/llm_meta_widget/_chat_panel.html.erb
+#   app/helpers/llm_meta_widget_helper.rb
+
+require "fileutils"
+require "pathname"
+
+ENGINE_ROOT   = Pathname.new(__dir__).parent.expand_path
+TEMPLATES_DIR = ENGINE_ROOT.join("lib/generators/llm_meta_client/widget/templates")
+
+MANIFEST = [
+  # [source (relative to TEMPLATES_DIR), destination (relative to host root)]
+  [ "public/js/llm_meta_orchestrator.js",                  "public/js/llm_meta_orchestrator.js" ],
+  [ "app/views/llm_meta_widget/_chat_panel.html.erb",      "app/views/llm_meta_widget/_chat_panel.html.erb" ],
+  [ "app/helpers/llm_meta_widget_helper.rb",               "app/helpers/llm_meta_widget_helper.rb" ]
+].freeze
+
+def die(msg)
+  warn "install-widget: #{msg}"
+  exit 1
+end
+
+# Parse args
+dry_run = false
+force   = false
+target  = nil
+ARGV.each do |arg|
+  case arg
+  when "--dry-run" then dry_run = true
+  when "--force"   then force   = true
+  when "-h", "--help"
+    puts File.read(__FILE__).lines[2..30].join
+    exit 0
+  else
+    die "unexpected argument: #{arg}" if target
+    target = arg
+  end
+end
+die "missing target host path (try --help)" unless target
+
+host = Pathname.new(target).expand_path
+die "target does not exist: #{host}" unless host.directory?
+die "target does not look like a Rails app (no config/application.rb): #{host}" unless host.join("config/application.rb").file?
+
+puts "Source: #{TEMPLATES_DIR}"
+puts "Target: #{host}"
+puts "Mode:   #{dry_run ? 'DRY-RUN' : (force ? 'overwrite' : 'skip-existing')}"
+puts
+
+status = { copied: 0, skipped: 0, would_copy: 0 }
+
+MANIFEST.each do |(src_rel, dest_rel)|
+  src  = TEMPLATES_DIR.join(src_rel)
+  dest = host.join(dest_rel)
+  die "source missing (bug?): #{src}" unless src.file?
+
+  if dest.exist? && !force && !dry_run
+    puts "  = #{dest_rel} (skipped — exists; use --force to overwrite)"
+    status[:skipped] += 1
+    next
+  end
+
+  if dry_run
+    puts "  + #{dest_rel} (would copy)"
+    status[:would_copy] += 1
+  else
+    FileUtils.mkdir_p(dest.dirname)
+    FileUtils.cp(src, dest)
+    puts "  + #{dest_rel}"
+    status[:copied] += 1
+  end
+end
+
+puts
+puts status.map { |k, v| "#{v} #{k}" }.join(", ")
+
+unless dry_run
+  puts
+  puts "Next steps in the host:"
+  puts "  1. On your target view, render the widget:"
+  puts "       <%= llm_meta_widget(base_url: \"https://llmbranch.dbcls.jp\", model: \"qwen3-6-35b-fast\") %>"
+  puts "  2. On the same view, declare the local actions the LLM can invoke:"
+  puts "       <script type=\"application/json\" id=\"ai-actions\">[…]</script>"
+  puts "       <script>window.aiState = {…}; window.aiActions = {…};</script>"
+  puts "  3. Ensure the meta-server's CORS allow list includes this host's origin."
+end
