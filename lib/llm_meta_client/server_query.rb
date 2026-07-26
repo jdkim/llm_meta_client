@@ -127,6 +127,20 @@ module LlmMetaClient
           else args.to_s
           end
         lines << (args_str.empty? ? "- `#{name}`" : "- `#{name}` — `#{args_str}`")
+
+        # Server includes a truncated result on each tool_call payload
+        # (LlmRbFacade zips it in after execution). Show it as an indented
+        # block so debugging is possible from the chat UI. Absent for older
+        # server versions or when the tool returned nothing meaningful.
+        result = tc["result"] || tc[:result]
+        result_str = result.to_s
+        if result_str.present?
+          # Indent every line by 2 spaces so markdown treats the whole thing
+          # as a continuation of the preceding `- ` list item.
+          indented = result_str.gsub(/^/, "  ")
+          lines << "  Result:"
+          lines << indented
+        end
       end
       lines.join("\n")
     end

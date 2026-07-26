@@ -66,6 +66,49 @@ class LlmMetaClient::ServerQueryTest < ActiveSupport::TestCase
     assert_includes result, "{\"q\":\"x\"}"
   end
 
+  test "#call includes the tool result (when present) under each tool call" do
+    # New in v1.8: the server (LlmRbFacade) zips a truncated `result` string
+    # into each tool_call payload after execution. Client renders it so the
+    # user can see what a tool actually returned (essential for debugging).
+    stub_request(:post, CHATS_URL).to_return(
+      status: 200,
+      body: {
+        response: {
+          message: "Done.",
+          tool_calls: [ { "id" => "c1", "name" => "lookup", "arguments" => { "q" => "x" }, "result" => "Found 3 items:\n- a\n- b\n- c" } ]
+        }
+      }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    )
+
+    result = @query.call(TOKEN, UUID, MODEL, "ctx", "msg")
+
+    assert_includes result, "`lookup`"
+    assert_includes result, "Result:"
+    assert_includes result, "Found 3 items:"
+    # Result body must be indented 2 spaces so markdown treats it as a
+    # continuation of the surrounding list item rather than a new list.
+    assert_includes result, "  - a"
+  end
+
+  test "#call omits the Result: line when result is missing or blank (backward compat with older servers)" do
+    stub_request(:post, CHATS_URL).to_return(
+      status: 200,
+      body: {
+        response: {
+          message: "Done.",
+          # No result key at all — matches pre-v1.8 server responses.
+          tool_calls: [ { "id" => "c1", "name" => "lookup", "arguments" => { "q" => "x" } } ]
+        }
+      }.to_json,
+      headers: { "Content-Type" => "application/json" }
+    )
+
+    result = @query.call(TOKEN, UUID, MODEL, "ctx", "msg")
+
+    refute_includes result, "Result:"
+  end
+
   test "#call raises EmptyResponseError when both message and tool_calls are absent" do
     stub_request(:post, CHATS_URL).to_return(
       status: 200, body: { response: { message: "" } }.to_json,
