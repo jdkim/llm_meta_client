@@ -141,6 +141,32 @@ Ensure your external LLM service is running, then:
 $ rails server -p 3001
 ```
 
+### 6. Verify Installation
+
+Run each of these against your fresh host app; they cover the auto-registered surfaces of the gem (the scaffold routes, the auto-included view helper, and the backend connection).
+
+```bash
+# a) Backend reachable (default llm_service.base_url is http://localhost:3000)
+curl -sI http://localhost:3000/up
+# → HTTP/1.1 200 OK
+
+# b) Scaffold routes registered on the host app
+bin/rails routes -g chats | head
+# → GET  /chats          chats#index
+#   POST /chats          chats#create
+#   ...
+
+# c) View helpers auto-included by the engine
+bin/rails runner 'puts LlmMetaClient::Helpers.instance_methods.sort.join(", ")'
+# → prints the helper methods the engine mounts into ActionView
+
+# d) End-to-end smoke test in a browser: visit http://localhost:3001/chats
+#    Ollama should appear in the LLM selector as long as the backend has an
+#    Ollama model registered — you can then send a prompt without signing in.
+```
+
+If step (a) fails, your `llm_meta_server` isn't running or `llm_service.base_url` in credentials points elsewhere. If step (d) shows no LLM options, register at least one Ollama model on the backend.
+
 ## Configuration
 
 All configuration values are managed via **Rails credentials** (`rails credentials:edit`).
@@ -287,6 +313,20 @@ This means each user message may trigger **up to 3 HTTP requests** to the extern
 | Anthropic | `anthropic` | Requires API key via external service |
 | Google | `google` | Requires API key via external service |
 | Ollama | `ollama` | No API key required; usable by guest users |
+
+## Development
+
+After cloning the repository:
+
+```bash
+bundle install
+
+# Run the test suite (boots test/dummy under the hood)
+bin/rails test
+
+# Lint (uses rubocop-rails-omakase)
+bundle exec rubocop
+```
 
 ## Contributing
 
