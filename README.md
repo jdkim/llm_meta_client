@@ -328,14 +328,9 @@ bin/rails test
 bundle exec rubocop
 ```
 
-## Contributing
+## Related repositories
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a Pull Request
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+- [`llm_meta_server`](https://github.com/jdkim/llm_meta_server) — the external backend this gem talks to over REST
+- [`llm_meta_chat`](https://github.com/jdkim/llm_meta_chat) — a Rails chat application that embeds this gem
+- [`chat_manager`](https://github.com/jdkim/chat_manager) — dependency; provides the chat sidebar, CSV export, and auto-generated titles
+- [`prompt_navigator`](https://github.com/jdkim/prompt_navigator) — dependency; provides the prompt-execution tree model
